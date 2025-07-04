@@ -1,1 +1,17 @@
-hodometro.db
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Banco de dados SQLite
+*.sqlite3
+*.db
+
+# Variáveis de ambiente
+.env
+
+# Modelos treinados (pesados)
+modelos_hodometro/
+
+# Logs
+*.log
+hodometro.log

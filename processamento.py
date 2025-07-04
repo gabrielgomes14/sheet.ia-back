@@ -7,8 +7,9 @@ from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import StandardScaler
 import joblib
 
-DB_PATH = "hodometro.db"
-MODEL_DIR = "modelos_hodometro"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "data", "hodometro.db")
+MODEL_DIR = os.path.join(BASE_DIR, "modelos_hodometro")
 
 os.makedirs(MODEL_DIR, exist_ok=True)
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
@@ -61,7 +62,6 @@ def inserir_planilha_no_banco(df: pd.DataFrame):
         else:
             logging.info("Nenhum registro novo para inserir.")
 
-
 def buscar_dados_historicos() -> pd.DataFrame:
     with sqlite3.connect(DB_PATH) as conn:
         df = pd.read_sql(
@@ -69,7 +69,6 @@ def buscar_dados_historicos() -> pd.DataFrame:
         )
     df["Data"] = pd.to_datetime(df["Data"])
     return df
-
 
 # ------------------------------------------------------------------ #
 # 2. FUNÇÕES DE IA / CORREÇÃO
@@ -86,18 +85,14 @@ def calcular_limite_km_por_dia(df: pd.DataFrame, col: str = "hodometro") -> floa
         return 200.0
     return max(np.percentile(vel, 95), 50.0)
 
-
 def caminho_modelo_placa(placa: str) -> str:
     return os.path.join(MODEL_DIR, f"modelo_{placa}.pkl")
-
 
 def carregar_modelo_existente(placa: str):
     return joblib.load(caminho_modelo_placa(placa)) if os.path.exists(caminho_modelo_placa(placa)) else None
 
-
 def salvar_modelo(placa: str, modelo_scaler):
     joblib.dump(modelo_scaler, caminho_modelo_placa(placa))
-
 
 def treinar_modelo(y, dias, modelo_scaler=None):
     X = np.array(dias).reshape(-1, 1)
@@ -111,7 +106,6 @@ def treinar_modelo(y, dias, modelo_scaler=None):
         Xs = scaler.transform(X)
         mdl.fit(Xs, y)
     return mdl, scaler
-
 
 def corrigir_grupo(df_grp: pd.DataFrame, hist: pd.DataFrame, col="hodometro"):
     df_grp = df_grp.sort_values("Data").reset_index(drop=True)
@@ -153,7 +147,6 @@ def corrigir_grupo(df_grp: pd.DataFrame, hist: pd.DataFrame, col="hodometro"):
     salvar_modelo(placa, (mdl, scl))
     df_grp[col] = y_corr
     return df_grp
-
 
 # ------------------------------------------------------------------ #
 # 3. PIPELINE PRINCIPAL
