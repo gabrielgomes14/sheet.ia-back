@@ -18,8 +18,8 @@ jobs:
 
       - name: Build da imagem
         run: |
-          docker build -t gomesgalikosky/${{ github.event.repository.name }}:latest .
+          docker build -t gomes025/machine-learning_ecar-api:latest .
 
       - name: Push da imagem
         run: |
-          docker push gomesgalikosky/${{ github.event.repository.name }}:latest
+          docker push gomes025/machine-learning_ecar-api:latest
