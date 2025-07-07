@@ -1,0 +1,25 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches:
+      - main  # ou a branch que você usa
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v3
+
+      - name: Login no DockerHub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Build da imagem
+        run: |
+          docker build -t gomesgalikosky/${{ github.event.repository.name }}:latest .
+
+      - name: Push da imagem
+        run: |
+          docker push gomesgalikosky/${{ github.event.repository.name }}:latest
