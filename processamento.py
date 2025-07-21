@@ -25,7 +25,6 @@ MODEL_DIR = os.path.join(BASE_DIR, "modelos_hodometro")
 os.makedirs(MODEL_DIR, exist_ok=True)
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 
-
 # ------------------------------------------------------------------ #
 # 1. BANCO DE DADOS
 # ------------------------------------------------------------------ #
@@ -39,7 +38,6 @@ def criar_tabela_se_nao_existe():
                 data DATE NOT NULL
             );
         """))
-
 
 def inserir_planilha_no_banco(df: pd.DataFrame):
     with engine.begin() as conn:
@@ -68,7 +66,6 @@ def inserir_planilha_no_banco(df: pd.DataFrame):
         else:
             logging.info("Nenhum registro novo para inserir.")
 
-
 def buscar_dados_historicos() -> pd.DataFrame:
     with engine.connect() as conn:
         df = pd.read_sql("SELECT placa, hodometro, data FROM hodometro_data", conn)
@@ -94,15 +91,12 @@ def calcular_limite_km_por_dia(df: pd.DataFrame, col: str = "Hodômetro") -> flo
 def caminho_modelo_placa(placa: str) -> str:
     return os.path.join(MODEL_DIR, f"modelo_{placa}.pkl")
 
-
 def carregar_modelo_existente(placa: str):
     caminho = caminho_modelo_placa(placa)
     return joblib.load(caminho) if os.path.exists(caminho) else None
 
-
 def salvar_modelo(placa: str, modelo_scaler):
     joblib.dump(modelo_scaler, caminho_modelo_placa(placa))
-
 
 def treinar_modelo(y, dias, modelo_scaler=None):
     X = np.array(dias).reshape(-1, 1)
@@ -125,7 +119,7 @@ def corrigir_grupo(df_grp: pd.DataFrame, hist: pd.DataFrame, col="Hodômetro"):
 
     y_corr = [hod[0]]
     t0 = datas[0]
-    dias = [(d - t0).days for d in datas]
+    dias = [(d - t0).total_seconds() / 86400 for d in datas]  # 86400 = segundos em 1 dia
 
     max_km_dia = calcular_limite_km_por_dia(hist[hist["Placa"] == placa], col)
     mdl, scl = treinar_modelo(y_corr, dias[:1], carregar_modelo_existente(placa))
@@ -163,7 +157,6 @@ def formatar_cnpj(cnpj):
     cnpj_str = str(cnpj).zfill(14)
     return f"{cnpj_str[:2]}.{cnpj_str[2:5]}.{cnpj_str[5:8]}/{cnpj_str[8:12]}-{cnpj_str[12:]}"
 
-
 # ------------------------------------------------------------------ #
 # 4. PIPELINE PRINCIPAL
 # ------------------------------------------------------------------ #
@@ -180,9 +173,29 @@ def corrigir_planilha_com_ia(path: str, col: str = "Hodômetro") -> pd.DataFrame
     df.columns = df.columns.str.strip()
     print("Colunas após strip:", df.columns.tolist())
 
-    if not {"Data", "Placa", "Hodômetro"}.issubset(df.columns):
-        logging.error(f"Planilha deve conter as colunas: Data, Placa e Hodômetro. Encontrado: {df.columns.tolist()}")
+    # Mapeamento de nomes alternativos
+    colunas_aceitas = {
+        "Data": ["Data", "Data/Hora Transação", "Data Transação"],
+        "Placa": ["Placa"],
+        "Hodômetro": ["Hodômetro", "Hodômetro - Dig. Motorista", "HODOMETRO OU HORIMETRO"],
+    }
+
+    def encontrar_coluna(df_cols, possiveis):
+        for col in possiveis:
+            if col in df_cols:
+                return col
         return None
+
+    col_data = encontrar_coluna(df.columns, colunas_aceitas["Data"])
+    col_placa = encontrar_coluna(df.columns, colunas_aceitas["Placa"])
+    col_hod = encontrar_coluna(df.columns, colunas_aceitas["Hodômetro"])
+
+    if not all([col_data, col_placa, col_hod]):
+        logging.error(f"Planilha deve conter colunas compatíveis com: Data, Placa, Hodômetro.")
+        return None
+
+    # Renomeia para nomes padrão
+    df = df.rename(columns={col_data: "Data", col_placa: "Placa", col_hod: "Hodômetro"})
 
     df["Data"] = pd.to_datetime(df["Data"], dayfirst=True, errors="coerce")
     df = df.dropna(subset=["Data"])

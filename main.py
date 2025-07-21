@@ -44,7 +44,7 @@ async def corrigir_hodometro(file: UploadFile = File(...)):
 
         os.remove(temp_path)
 
-        # Renomeia "Hodômetro" → "hodometro" apenas se existir
+        # Renomeia "Hodômetro" → "hodometro" apenas se ele existir
         if "Hodômetro" in df_corrigido.columns:
             df_corrigido = df_corrigido.rename(columns={"Hodômetro": "hodometro"})
 
@@ -55,6 +55,7 @@ async def corrigir_hodometro(file: UploadFile = File(...)):
 
         # Formata e retorna tudo
         df_corrigido["hodometro"] = df_corrigido["hodometro"].astype("Int64")
+        df_corrigido["Data"] = df_corrigido["Data"].astype(str)
         return JSONResponse(content={"dados": df_corrigido.to_dict(orient="records")})
 
     except HTTPException as e:
